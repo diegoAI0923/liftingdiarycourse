@@ -958,4 +958,37 @@ But there's almost never a reason to do that — everything useful inside `.git`
 No. Git automatically ignores its own `.git` folder — it can never be committed or pushed to GitHub. Adding it to `.gitignore` would be redundant and wouldn't change anything. `.gitignore` is only needed for files Git *would* otherwise track, like `node_modules` or `.env`.
 
 ---
+
+## 30. What's the difference between "Create Branch" and "Create Branch From..." in VS Code?
+
+Both options are in the **Source Control** panel in VS Code:
+
+- **Create Branch** — creates a new branch from **wherever you currently are**. If you're on `main`, it branches off `main`. If you're on another branch, it branches off that instead.
+- **Create Branch From...** — lets you **explicitly choose** the starting point (main, another branch, a specific commit). Safer and more intentional.
+
+The habit worth building is always using **"Create Branch From..."** and selecting `main` — that way it's always explicit and you never accidentally branch off the wrong place.
+
+### Terminal equivalent
+
+```bash
+git checkout -b ui/new-visual-elements main
+```
+
+- `-b` — creates the new branch and switches to it in one step
+- `ui/new-visual-elements` — the name of the new branch
+- `main` — explicitly sets where to branch from (your golden reference)
+
+### How to delete a branch
+
+If you create a branch by mistake, switch back to `main` first, then delete it:
+
+```bash
+git checkout main
+git branch -d branch-name
+```
+
+- `git checkout main` — switches to the `main` branch
+- `git branch -d` — safe delete; won't let you delete a branch with unmerged commits
+
+---
 *These notes were compiled during initial project setup and are safe to keep inside the `src/` folder or at the project root. They do not affect application functionality.*
