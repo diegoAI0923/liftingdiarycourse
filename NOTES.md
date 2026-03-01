@@ -978,6 +978,28 @@ git checkout -b ui/new-visual-elements main
 - `ui/new-visual-elements` — the name of the new branch
 - `main` — explicitly sets where to branch from (your golden reference)
 
+### Does creating a branch locally publish it to GitHub automatically?
+
+No — `git checkout -b <new_branch> main` only creates the branch **locally**. GitHub has no idea it exists yet.
+
+To publish it to GitHub:
+
+```bash
+git push -u origin new-branch-name
+```
+
+The `-u` sets the upstream so future `git push` calls on that branch just work without specifying `origin branch-name` each time.
+
+**Or** in VS Code, after creating the branch locally a **"Publish Branch"** button appears in the Source Control panel — clicking it does the same thing.
+
+The full flow is always:
+
+```
+1. git checkout -b my-branch main    → creates branch locally
+2. git add . + git commit            → saves changes locally
+3. git push -u origin my-branch      → publishes branch to GitHub
+```
+
 ### How to delete a branch
 
 If you create a branch by mistake, switch back to `main` first, then delete it:
@@ -989,6 +1011,201 @@ git branch -d branch-name
 
 - `git checkout main` — switches to the `main` branch
 - `git branch -d` — safe delete; won't let you delete a branch with unmerged commits
+
+---
+
+## 31. How do `async`, `Promise`, and `await` work?
+
+These three concepts handle operations that take time (database queries, API calls) without freezing the app.
+
+### The problem they solve
+
+JavaScript is single-threaded — if it just waited doing nothing while a database query ran, the entire app would freeze. The solution: start the task, go do other things, come back when it's done.
+
+### `Promise`
+
+A `Promise` is an object that represents a value **that isn't available yet** but will be at some point. Like a restaurant ticket — you don't have the food yet, but you have a guarantee it's coming.
+
+```ts
+searchParams: Promise<{ date?: string }>
+// "searchParams isn't the value yet — it will resolve to { date?: string }"
+```
+
+### `await`
+
+`await` pauses execution **at that line only** until the Promise resolves, then gives you the actual value:
+
+```ts
+const { date } = await searchParams;
+// searchParams was a Promise<{ date?: string }>
+// after await, you have the actual { date?: string } object
+```
+
+Without `await`, you'd get the Promise object itself — not the data inside it.
+
+### `async`
+
+A function must be marked `async` to use `await` inside it. It also means the function itself returns a Promise automatically:
+
+```ts
+export default async function DashboardPage(...) {
+  const { userId } = await auth();                    // wait for Clerk
+  const { date }   = await searchParams;              // wait for searchParams
+  const workouts   = await db.query.workouts...       // wait for DB
+}
+```
+
+Each `await` pauses only that line — the rest of the server keeps handling other requests in parallel.
+
+---
+
+## 32. How does destructuring with TypeScript types work in function parameters?
+
+This syntax does two things at once: **destructuring** and **TypeScript typing**.
+
+### Step 1 — Without destructuring
+
+```ts
+function DashboardPage(props) {
+  console.log(props.searchParams);
+}
+```
+
+`props` is the object passed in. You access things on it with dot notation.
+
+### Step 2 — With destructuring
+
+```ts
+function DashboardPage({ searchParams }) {
+  console.log(searchParams); // no need for props.searchParams
+}
+```
+
+`{ searchParams }` means: "pull `searchParams` out of the incoming object and give it its own variable."
+
+### Step 3 — Adding TypeScript types
+
+```ts
+function DashboardPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+```
+
+The `: { ... }` after the destructure is the type annotation for the entire props object.
+
+### Step 4 — Split across lines for readability
+
+```ts
+export default async function DashboardPage({
+  searchParams,        // ← destructured prop
+}: {
+  searchParams: Promise<{ date?: string }>;  // ← its type
+}) {
+```
+
+Same thing — just formatted with line breaks.
+
+### The type decoded
+
+| Part | Meaning |
+|---|---|
+| `{ searchParams }` | Destructures `searchParams` out of props |
+| `: { ... }` | TypeScript type for the whole props object |
+| `Promise<...>` | Value is async — needs `await` |
+| `{ date?: string }` | Once resolved, object with optional string `date` |
+| `?` | `date` might not be present (URL has no `?date=` param) |
+
+---
+
+## 33. Is the props object created by TypeScript or sent by the user?
+
+**The framework (Next.js) sends it automatically** — you never call a page component yourself.
+
+```
+User visits /dashboard?date=2026-03-01
+        ↓
+Next.js matches the route to src/app/dashboard/page.tsx
+        ↓
+Next.js calls DashboardPage({ searchParams: { date: "2026-03-01" } })
+        ↓
+Your function runs with the object already populated
+```
+
+**TypeScript's role is separate** — it doesn't create or send anything. It validates at compile time that you're using `searchParams` correctly (e.g. warns if you forget to `await` it or access a property that doesn't exist).
+
+- **Next.js** → sends the props object at runtime
+- **TypeScript** → validates you're using it correctly at compile time
+- **You** → declare what shape you expect and destructure what you need
+
+---
+
+## 34. How do you know what props a component receives?
+
+The answer depends on what kind of component you're in.
+
+### Next.js page components
+
+Next.js documents exactly what it injects. Pages can receive:
+
+| Prop | What it contains |
+|---|---|
+| `searchParams` | URL query string as an object (`?date=2026-03-01` → `{ date: "2026-03-01" }`) |
+| `params` | Dynamic route segments (`/dashboard/[id]` → `{ id: "123" }`) |
+
+These are the only two Next.js injects into pages — anything else would be `undefined`.
+
+### Your own components
+
+You define the props yourself:
+
+```ts
+// you decided this prop exists
+export default function DatePicker({ selectedDate }: { selectedDate: string }) {
+```
+
+Whoever calls `<DatePicker selectedDate="2026-03-01" />` is responsible for passing it. TypeScript will error if a required prop is missing or the wrong type is passed.
+
+### How to know in practice
+
+1. **Framework components** (pages, layouts) → check the Next.js docs
+2. **Your own components** → you define the props; TypeScript enforces them
+3. **Third-party components** → check their docs or hover over the component in VS Code — TypeScript shows accepted props inline
+
+---
+
+## 35. What is a good approach for giving Claude UI visual standards?
+
+A `/docs/ui.md` file referenced in `CLAUDE.md` works well. Claude reads it before writing any code and follows the rules defined there.
+
+The most reliable rules are **explicit prohibitions** — negative rules ("do NOT use lucide-react directly") are more reliable than positive ones ("prefer X"). Rules that are merely implied or inferred are more likely to be missed.
+
+Things worth adding to `ui.md` to reduce corrections:
+- **Layout patterns** — preferred max-width, spacing, and padding conventions
+- **Variant conventions** — when to use `Badge variant="outline"` vs `"secondary"`, etc.
+- **Explicit bans** — e.g. "Do NOT import icons from `lucide-react` directly. Icons are not shadcn components."
+
+---
+
+## 36. What is `"use client"` in Next.js?
+
+A **directive** placed at the top of a file that marks it as a **Client Component** — meaning it runs in the browser, not on the server.
+
+```tsx
+"use client";
+```
+
+Next.js defaults all components to **Server Components** (run on the server, no access to browser APIs or React hooks). Adding `"use client"` opts the file out of that default.
+
+**When it's required:**
+- The component uses React state (`useState`, `useReducer`)
+- The component uses React hooks that depend on the browser (`useEffect`, `useRef`)
+- The component handles user events (`onClick`, `onChange`, etc.)
+- The component uses browser-only APIs (`window`, `document`, etc.)
+
+**When it's not needed:**
+- The component just renders static HTML/JSX
+- The component fetches data on the server
+- The component has no interactivity
+
+shadcn/ui adds `"use client"` automatically to components that require it (e.g. `popover.tsx`, `calendar.tsx`) because they depend on state for their open/close behavior. You don't need to add it yourself when installing those components.
 
 ---
 *These notes were compiled during initial project setup and are safe to keep inside the `src/` folder or at the project root. They do not affect application functionality.*
