@@ -5,24 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Start development server at localhost:3000
-npm run build    # Production build
-npm start        # Serve production build
+npm run dev      # Start development server at http://localhost:3000
+npm run build    # Build for production
+npm run start    # Run production build
 npm run lint     # Run ESLint
 ```
 
 ## Architecture
 
-This is a **Next.js 16 App Router** project using TypeScript, Tailwind CSS v4, and React 19.
+This is a **Next.js 16 App Router** project using **React 19**, **TypeScript**, and **Tailwind CSS v4**.
 
-**Routing:** File-based via `src/app/`. Each folder becomes a URL segment. Files named `page.tsx` render at that route. `layout.tsx` wraps child routes.
+- `src/app/` — App Router root. `layout.tsx` is the root layout wrapping all pages; `page.tsx` is the home route (`/`).
+- New routes are created as folders under `src/app/` with a `page.tsx` file inside (e.g. `src/app/workouts/page.tsx` becomes `/workouts`).
+- API routes go in `src/app/api/` as `route.ts` files.
+- The `@/*` path alias maps to `src/*` (e.g. `import Foo from "@/components/Foo"`).
+- Fonts are loaded via `next/font/google` in `layout.tsx` and exposed as CSS variables (`--font-geist-sans`, `--font-geist-mono`).
+- Global styles are in `src/app/globals.css`. Tailwind is configured via PostCSS (`postcss.config.mjs`).
 
-**Components:** Server Components by default (no `'use client'` directive needed). Add `'use client'` only when client-side interactivity, hooks, or browser APIs are required.
+## Key conventions
 
-**Styling:** Tailwind CSS v4 via PostCSS. Global styles and CSS variables defined in `src/app/globals.css` using `@theme inline`. Dark mode uses `@media (prefers-color-scheme: dark)`.
-
-**Path alias:** `@/*` resolves to `./src/*` (configured in `tsconfig.json`).
-
-**API routes:** Add `route.ts` files inside `src/app/api/` for backend endpoints.
-
-**SEO/Metadata:** Use Next.js `Metadata` API exported from `layout.tsx` or `page.tsx` files (not `<head>` tags directly).
+- All components default to **React Server Components**. Add `"use client"` only when browser APIs or interactivity (hooks, event handlers) are needed.
+- TypeScript strict mode is enabled — avoid `any` and ensure all types are explicit.
+- No test framework is configured yet.
