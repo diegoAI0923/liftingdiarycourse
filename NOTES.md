@@ -814,4 +814,148 @@ Creates a new GitHub repository and pushes your local code to it in one step.
 This is the equivalent of manually creating a repo on GitHub, running `git remote add origin <url>`, and then `git push -u origin main` — all in one command.
 
 ---
+
+## 27. Why were some files missing from GitHub after the initial push?
+
+The files (like `NOTES.md`) were not in `.gitignore` — that wasn't the reason. The reason is that they had never been **committed**. When `gh repo create --push` ran, it only pushed commits that already existed. Since those files were still untracked, Git had no record of them and they never made it to GitHub.
+
+The fix is to stage, commit, and push them:
+
+```bash
+git add .
+git commit -m "Add notes, drizzle config, db schema, and MCP config"
+git push
+```
+
+### What each command did here
+
+**`git add .`**
+Staged every untracked and modified file in the project — `NOTES.md`, `.mcp.json`, `drizzle/`, `src/db/`, and the rest. This moved them from "Git doesn't know about these" to "ready to be committed."
+
+**`git commit -m "Add notes, drizzle config, db schema, and MCP config"`**
+Created a snapshot of everything staged and saved it to the local Git history. The `-m` flag lets you write the commit message inline. At this point the changes still only exist locally.
+
+**`git push`**
+Sent the new commit to GitHub. This worked without specifying `origin main` because the branch already had an upstream set (from the earlier `gh repo create --push`), so Git knew where to send it.
+
+After running all three, all 16 files were uploaded and the GitHub repo matched the local project.
+
+---
+
+## 28. What do `origin`, `main`, and "upstream" mean in Git?
+
+### `origin` — the bridge
+
+`origin` is just a **nickname** for the remote URL. Instead of typing the full URL every time:
+
+```bash
+git push https://github.com/diegoAI0923/liftingdiarycourse.git main
+```
+
+You can type:
+
+```bash
+git push origin main
+```
+
+`origin` is an alias for that long URL. You could rename it to anything — `github`, `myrepo`, `banana` — but `origin` is the universal convention so everyone uses it.
+
+You can see what `origin` points to with:
+
+```bash
+git remote -v
+```
+
+Output:
+```
+origin  https://github.com/diegoAI0923/liftingdiarycourse.git (fetch)
+origin  https://github.com/diegoAI0923/liftingdiarycourse.git (push)
+```
+
+It appears twice because Git tracks a URL for **fetching** (downloading changes) and one for **pushing** (uploading changes) — they're usually the same URL.
+
+---
+
+### `main` — the destination branch
+
+When you push, Git needs to know which branch on GitHub to send your commits to. `main` on the GitHub side is the remote branch that mirrors your local `main`.
+
+```
+LOCAL                          GITHUB (origin)
+──────                         ───────────────
+main branch          ────▶     main branch
+(on your machine)    push      (on GitHub)
+```
+
+A way to read `git push origin main` out loud:
+
+> **"Push to `origin` (GitHub), targeting the `main` branch."**
+
+- **`origin`** — the bridge (the GitHub URL nickname)
+- **`main`** — the destination ("mirror my local `main` to the remote `main`")
+
+They don't have to share the same name — you could push local `main` to a remote branch called `production` — but keeping them both `main` is standard convention.
+
+**Why GitHub's `main` matters:**
+- It's what GitHub displays by default when you open the repo
+- It's what you pull from when downloading changes to another machine
+- It's what deployment services like Vercel watch for changes
+
+```
+local main  →  git push  →  origin/main (GitHub)
+local main  ←  git pull  ←  origin/main (GitHub)
+```
+
+---
+
+### "Upstream" — the saved connection between branches
+
+When you run `git push -u origin main` (the `-u` flag), Git writes a small config entry that says:
+
+> "my local `main` corresponds to `main` on `origin`"
+
+This is called setting the **upstream**. After it's set, plain `git push` works without you specifying `origin main` every time — Git already knows where to send the code.
+
+Without an upstream set, Git would complain:
+```
+fatal: The current branch main has no upstream branch.
+```
+
+You can verify the upstream is set with:
+```bash
+git branch -vv
+```
+
+Output:
+```
+* main  319fe51 [origin/main] Add notes, drizzle config, db schema...
+```
+
+The `[origin/main]` confirms the upstream is set. You only need `-u` once per branch — after that, plain `git push` and `git pull` just work.
+
+---
+
+## 29. Why is the `.git` folder not visible in VS Code?
+
+It's not because of `.gitignore` — that file only tells Git which files to ignore when committing, it has no effect on the VS Code UI.
+
+The real reason is VS Code has a built-in setting called **`files.exclude`** that hides certain files and folders from the Explorer panel by default. Out of the box it includes:
+
+```json
+"files.exclude": {
+  "**/.git": true
+}
+```
+
+This is intentional — `.git` is an internal Git folder you rarely need to browse manually, so VS Code hides it to reduce noise in the file tree.
+
+**To make it visible**, open VS Code settings (`Cmd + ,`), search for `files.exclude`, and remove or uncheck the `**/.git` entry.
+
+But there's almost never a reason to do that — everything useful inside `.git` is exposed through VS Code's built-in Git UI (the Source Control panel) or via terminal commands like `git log`, `git remote -v`, etc.
+
+### Does `.git` need to be added to `.gitignore`?
+
+No. Git automatically ignores its own `.git` folder — it can never be committed or pushed to GitHub. Adding it to `.gitignore` would be redundant and wouldn't change anything. `.gitignore` is only needed for files Git *would* otherwise track, like `node_modules` or `.env`.
+
+---
 *These notes were compiled during initial project setup and are safe to keep inside the `src/` folder or at the project root. They do not affect application functionality.*
